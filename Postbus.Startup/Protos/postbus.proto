@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+option csharp_namespace = "Postbus.Startup";
+
+package postbus;
+
+service Postbus {
+  rpc RevealChannels (ChannelsRequest) returns (ChannelsReply);
+}
+
+message ChannelsRequest { }
+
+message ChannelsReply {
+  string message = 1;
+}
