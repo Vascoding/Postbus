@@ -3,8 +3,10 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Postbus.Internals.Implementations;
-using Postbus.Internals.Interfaces;
+using Postbus.Startup.Services.Interfaces;
+using Postbus.Startup.Services.Implementations;
+
+
 
 namespace Postbus.Startup
 {
@@ -12,7 +14,8 @@ namespace Postbus.Startup
     {
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddSingleton<IChannelsService, ChannelsService>();
+            services.AddSingleton<IChatRoomService, ChatRoomService>();
+            services.AddSingleton<IRepository, Repository>();
             services.AddGrpc();
         }
 

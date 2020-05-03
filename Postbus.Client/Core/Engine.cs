@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Grpc.Core;
 using Newtonsoft.Json;
 using Postbus.Startup;
 using static Postbus.Startup.Postbus;
@@ -20,20 +21,24 @@ namespace Postbus.Client.Core
 
         public async Task Run()
         {
-            var response = await client.RevealChannelsAsync(new ChannelsRequest());
-            this.channels = JsonConvert.DeserializeObject<List<string>>(response.Message);
-            Console.WriteLine(string.Join(Environment.NewLine, this.channels));
+            using var streaming = client.ToChatRoom();
+            Console.Write("Type your username: ");
+            var username = Console.ReadLine();
             var input = string.Empty;
-            while ((input = Console.ReadLine()) != "exit")
+            while ((input = Console.ReadLine()) != "end")
             {
-                Console.WriteLine($"You entered {input}");
-                while ((input = Console.ReadLine()) != "back")
+                var response = Task.Run(async () =>
                 {
-                    Console.WriteLine("type");
-                }
+                    await foreach (var res in streaming.ResponseStream.ReadAllAsync())
+                    {
+                        Console.WriteLine(res.Message);
+                    }
+                });
 
-                Console.WriteLine(string.Join(Environment.NewLine, this.channels));
+                await streaming.RequestStream.WriteAsync(new ChatRoomRequestStream { Chatroom = "General", Username = username, Message = input });
             }
+
+            await streaming.RequestStream.CompleteAsync();
         }
     }
 }

@@ -1,26 +1,35 @@
+using System;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
-using Postbus.Internals.Interfaces;
+using Postbus.Startup.Services.Interfaces;
 
 namespace Postbus.Startup
 {
     public class PostbusService : Postbus.PostbusBase
     {
         private readonly ILogger<PostbusService> logger;
-        private readonly IChannelsService channelsService;
+        private readonly IChatRoomService chatRoomService;
+        private readonly IRepository repository;
 
-        public PostbusService(ILogger<PostbusService> logger, IChannelsService channelsService)
+        public PostbusService(ILogger<PostbusService> logger, IChatRoomService chatRoomService, IRepository repository)
         {
             this.logger = logger;
-            this.channelsService = channelsService;
+            this.chatRoomService = chatRoomService;
+            this.repository = repository;
         }
 
-        public override async Task<ChannelsReply> RevealChannels(ChannelsRequest request, ServerCallContext context)
+        public override async Task ToChatRoom(IAsyncStreamReader<ChatRoomRequestStream> requestStream, IServerStreamWriter<ChatRoomResponseStream> responseStream, ServerCallContext context)
         {
-            var channels = await this.channelsService.GetAvailableChannels();
-            return new ChannelsReply { Message = JsonConvert.SerializeObject(channels) };
+            await foreach (var req in requestStream.ReadAllAsync())
+            {
+                if (!this.chatRoomService.IsRegistered(req.Chatroom, responseStream))
+                {
+                    await this.chatRoomService.RegisterAsync(req.Chatroom, responseStream);
+                }
+                
+                await this.chatRoomService.BroadcastMessageAsync(req.Chatroom, $"{req.Username} :{req.Message}");
+            }
         }
     }
 }
