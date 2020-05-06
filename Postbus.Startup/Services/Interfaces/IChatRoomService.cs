@@ -1,17 +1,20 @@
 ﻿using Grpc.Core;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Postbus.Startup.Services.Interfaces
 {
     public interface IChatRoomService
     {
-        Task RegisterAsync(string chatRoom, IServerStreamWriter<ChatRoomResponseStream> stream);
+        Task RegisterAsync(string chatRoom, string username, IServerStreamWriter<ChatRoomResponseStream> stream);
 
-        Task<string[]> GetAvailableChatRoomsAsync();
+        Task<string> UnRegisterAsync(string chatRoom, string username);
 
-        Task BroadcastMessageAsync(string chatRoom, string message);
+        string[] GetAvailableChatRooms();
 
-        bool IsRegistered(string chatRoom, IServerStreamWriter<ChatRoomResponseStream> stream);
+        string[] GetUsersPerChatRoom(string chatRoom);
+
+        Task BroadcastMessageAsync(string chatRoom, string username, string message);
+
+        bool IsRegistered(string chatRoom, string username);
     }
 }

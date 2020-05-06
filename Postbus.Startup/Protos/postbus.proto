@@ -6,12 +6,31 @@ package postbus;
 
 service Postbus {
   rpc RevealChatRooms (ChatRoomsRequest) returns (ChatRoomsReply);
-  rpc ToChatRoom (stream ChatRoomRequestStream) returns (stream ChatRoomResponseStream);
+  rpc RevealUsers (UsersRequest) returns (UsersReply);
+  rpc ExitChatRoom (ExitRequest) returns (ExitReply);
+  rpc OpenConnection (stream ChatRoomRequestStream) returns (stream ChatRoomResponseStream);
 }
 
 message ChatRoomsRequest { }
 
 message ChatRoomsReply {
+  string message = 1;
+}
+
+message UsersRequest {
+  string chatroom = 1;
+}
+
+message UsersReply {
+  string message = 1;
+}
+
+message ExitRequest {
+  string chatroom = 1;
+  string username = 2;
+}
+
+message ExitReply {
   string message = 1;
 }
 

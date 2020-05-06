@@ -15,7 +15,6 @@ namespace Postbus.Startup
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddSingleton<IChatRoomService, ChatRoomService>();
-            services.AddSingleton<IRepository, Repository>();
             services.AddGrpc();
         }
 
