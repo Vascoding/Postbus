@@ -3,78 +3,70 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Grpc.Core;
-using Postbus.Startup.Models;
 using Postbus.Startup.Services.Interfaces;
 
 namespace Postbus.Startup.Services.Implementations
 {
-    public class ChatRoomService : IChatRoomService
+    internal class ChatRoomService : IChatRoomService
     {
-        private readonly ConcurrentDictionary<string, List<Subscriber<ChatRoomResponseStream>>> subscribersByChatRoom;
+        private readonly ConcurrentDictionary<string, List<Guid>> subscribersByChatRoom;
+        private readonly IRepository repository;
 
-        public ChatRoomService()
+        public ChatRoomService(IRepository repository)
         {
+            this.repository = repository;
             this.subscribersByChatRoom = this.InitChatRooms();
         }
 
-        public bool IsRegistered(string chatRoom, string username)
+        public bool IsRegistered(string chatRoom, Guid guid)
         {
             if (!this.HasChatRoom(chatRoom))
             {
                 return false;
             }
 
-            return this.subscribersByChatRoom[chatRoom].Any(u => u.Username == username);
+            return this.subscribersByChatRoom[chatRoom].Any(u => u == guid);
         }
 
-        public async Task RegisterAsync(string chatRoom, string username, IServerStreamWriter<ChatRoomResponseStream> stream)
+        public async Task RegisterAsync(string chatRoom, Guid guid)
         {
-            var subscriber = new Subscriber<ChatRoomResponseStream>
-            {
-                Username = username,
-                ResponseStream = stream
-            };
-
             await Task
                 .Run(() => this.subscribersByChatRoom
-                .AddOrUpdate(chatRoom, new List<Subscriber<ChatRoomResponseStream>> { subscriber }, (key, value) => {
-                    value.Add(subscriber);
+                .AddOrUpdate(chatRoom, new List<Guid> { guid }, (key, value) => {
+                    value.Add(guid);
                     return value;
                 }));
-
-            await this.WriteToAll(chatRoom, $"{username} has joined the chat room");
         }
 
-        public async Task<string> UnRegisterAsync(string chatRoom, string username)
+        public async Task<string> UnRegisterAsync(string chatRoom, Guid guid)
         {
             if (!this.HasChatRoom(chatRoom))
             {
-                return await Task.Run(() => "Chat room not found!!!");
+                return "Chat room not found!!!";
             }
 
-            var subscriber = this.subscribersByChatRoom[chatRoom].FirstOrDefault(u => u.Username == username);
+            var subscriber = this.subscribersByChatRoom[chatRoom].FirstOrDefault(u => u == guid);
 
             if (subscriber == null)
             {
-                return await Task.Run(() => "User not found!!!");
+                return "User not found!!!";
             }
 
             this.subscribersByChatRoom[chatRoom].Remove(subscriber);
 
-            await this.WriteToAll(chatRoom, $"{username} has left the chat room");
+            await this.WriteToAll(chatRoom, $"{this.repository.Subscribers[guid].Username} has left the chat room");
 
-            return await Task.Run(() => $"You left chat room {chatRoom}!!!");
+            return $"You left chat room {chatRoom}!!!";
         }
 
-        public async Task BroadcastMessageAsync(string chatRoom, string username, string message)
+        public async Task BroadcastMessageAsync(string chatRoom, Guid guid, string message)
         {
             if (!this.HasChatRoom(chatRoom))
             {
                 return;
             }
 
-            await this.WriteToAll(chatRoom, $"{username}: {message}");
+            await this.WriteToAll(chatRoom, $"{this.repository.Subscribers[guid].Username}: {message}");
         }
 
         public string[] GetAvailableChatRooms() =>
@@ -87,15 +79,18 @@ namespace Postbus.Startup.Services.Implementations
                 return Array.Empty<string>();
             }
 
-            return this.subscribersByChatRoom[chatRoom].Select(s => s.Username).ToArray();
+            return this.repository
+                .Subscribers
+                .Where(s => this.subscribersByChatRoom[chatRoom].Contains(s.Key))
+                .Select(a => a.Value.Username).ToArray();
         }
 
-        private ConcurrentDictionary<string, List<Subscriber<ChatRoomResponseStream>>> InitChatRooms()
+        private ConcurrentDictionary<string, List<Guid>> InitChatRooms()
         {
-            var availableChatRooms = new ConcurrentDictionary<string, List<Subscriber<ChatRoomResponseStream>>>();
-            availableChatRooms.TryAdd("Team", new List<Subscriber<ChatRoomResponseStream>>());
-            availableChatRooms.TryAdd("General", new List<Subscriber<ChatRoomResponseStream>>());
-            availableChatRooms.TryAdd("Spam", new List<Subscriber<ChatRoomResponseStream>>());
+            var availableChatRooms = new ConcurrentDictionary<string, List<Guid>>();
+            availableChatRooms.TryAdd("Team", new List<Guid>());
+            availableChatRooms.TryAdd("General", new List<Guid>());
+            availableChatRooms.TryAdd("Spam", new List<Guid>());
             return availableChatRooms;
         }
 
@@ -104,18 +99,19 @@ namespace Postbus.Startup.Services.Implementations
 
         private async Task WriteToAll(string chatRoom, string message)
         {
-            var subscribersToRemove = new List<Subscriber<ChatRoomResponseStream>>();
+            var subscribersToRemove = new List<Guid>();
 
-            foreach (var subscriber in this.subscribersByChatRoom[chatRoom])
+            foreach (var guid in this.subscribersByChatRoom[chatRoom])
             {
                 try
                 {
-                    await subscriber.ResponseStream.WriteAsync(new ChatRoomResponseStream { Message = message });
+                    await this.repository.Subscribers[guid].ResponseStream.WriteAsync(new ChatRoomResponseStream { Message = message });
                 }
                 catch (Exception)
                 {
-                    subscribersToRemove.Add(subscriber);
-                    Console.WriteLine($"the connection for user {subscriber} was lost");
+                    subscribersToRemove.Add(guid);
+                    this.repository.Subscribers.TryRemove(guid, out var subscriber);
+                    Console.WriteLine($"the connection for user {guid} was lost");
                 }
             }
 

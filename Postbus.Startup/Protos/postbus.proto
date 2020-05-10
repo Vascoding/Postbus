@@ -27,7 +27,7 @@ message UsersReply {
 
 message ExitRequest {
   string chatroom = 1;
-  string username = 2;
+  string guid = 2;
 }
 
 message ExitReply {
@@ -36,7 +36,7 @@ message ExitReply {
 
 message ChatRoomRequestStream {
   string chatroom = 1;
-  string username = 2;
+  bool toall = 2;
   string message = 3;
 }
 

@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Collections.Concurrent;
+using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Newtonsoft.Json;
@@ -17,10 +20,17 @@ namespace Postbus.Client.Core
 
         public async Task Run()
         {
-            using var connection = client.OpenConnection();
-            this.ReadResponses(connection);
             Console.Write("Type your username: ");
+            var guid = Guid.NewGuid().ToString();
             var username = Console.ReadLine();
+            using var connection = client.OpenConnection(new Metadata 
+            { 
+                { "guid",  guid },
+                { "username", username }
+
+            });
+
+            this.ReadResponses(connection);
             var input = string.Empty;
             while (true)
             {
@@ -38,15 +48,15 @@ namespace Postbus.Client.Core
                 var users = JsonConvert.DeserializeObject<string[]>(usersResponse.Message);
                 Console.Clear();
                 Console.WriteLine(string.Join(Environment.NewLine, users));
-                Console.WriteLine($"You entered chat room {chatroom}!!!");
+                await connection.RequestStream.WriteAsync(new ChatRoomRequestStream { Chatroom = chatroom, Message = "Hello everyone :)", Toall = true });
                 while ((input = Console.ReadLine()) != "exit")
                 {
-                    await connection.RequestStream.WriteAsync(new ChatRoomRequestStream { Chatroom = chatroom, Username = username, Message = input });
+                    await connection.RequestStream.WriteAsync(new ChatRoomRequestStream { Chatroom = chatroom, Message = input, Toall = true });
                 }
 
                 Console.Clear();
 
-                var response = await this.client.ExitChatRoomAsync(new ExitRequest { Chatroom = chatroom, Username = username });
+                var response = await this.client.ExitChatRoomAsync(new ExitRequest { Chatroom = chatroom, Guid = guid });
 
                 Console.WriteLine(response.Message);
             }
