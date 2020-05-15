@@ -6,8 +6,6 @@ using Microsoft.Extensions.Hosting;
 using Postbus.Startup.Services.Interfaces;
 using Postbus.Startup.Services.Implementations;
 
-
-
 namespace Postbus.Startup
 {
     public class Startup

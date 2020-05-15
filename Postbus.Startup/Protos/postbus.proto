@@ -8,7 +8,7 @@ service Postbus {
   rpc RevealChatRooms (ChatRoomsRequest) returns (ChatRoomsReply);
   rpc RevealUsers (UsersRequest) returns (UsersReply);
   rpc ExitChatRoom (ExitRequest) returns (ExitReply);
-  rpc OpenConnection (stream ChatRoomRequestStream) returns (stream ChatRoomResponseStream);
+  rpc OpenConnection (stream RequestStream) returns (stream ResponseStream);
 }
 
 message ChatRoomsRequest { }
@@ -34,12 +34,12 @@ message ExitReply {
   string message = 1;
 }
 
-message ChatRoomRequestStream {
+message RequestStream {
   string chatroom = 1;
   bool toall = 2;
   string message = 3;
 }
 
-message ChatRoomResponseStream {
+message ResponseStream {
   string message = 1;
 }

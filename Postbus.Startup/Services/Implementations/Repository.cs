@@ -1,8 +1,9 @@
 ﻿using Grpc.Core;
+using Postbus.Internals.Extentions;
 using Postbus.Startup.Models;
 using Postbus.Startup.Services.Interfaces;
 using System;
-using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Postbus.Startup.Services.Implementations
@@ -11,27 +12,25 @@ namespace Postbus.Startup.Services.Implementations
     {
         public Repository()
         {
-            this.Subscribers = new ConcurrentDictionary<Guid, Subscriber<ChatRoomResponseStream>>();
+            this.Subscribers = new Dictionary<Guid, Subscriber<ResponseStream>>();
         }
 
-        public ConcurrentDictionary<Guid, Subscriber<ChatRoomResponseStream>> Subscribers { get; }
+        public IDictionary<Guid, Subscriber<ResponseStream>> Subscribers { get; }
 
-        public async Task<string> RegisterAsync(Guid guid, string username, IServerStreamWriter<ChatRoomResponseStream> stream) 
+        public async Task<string> RegisterAsync(Guid guid, string username, IServerStreamWriter<ResponseStream> stream) 
         {
-            var success = await Task
-                .Run(() =>
-                    this.Subscribers.TryAdd(guid, new Subscriber<ChatRoomResponseStream>
-                    {
-                        Username = username,
-                        ResponseStream = stream
-                    }));
+            var success = await this.Subscribers.TryAddAsync(guid, new Subscriber<ResponseStream>
+            {
+                Username = username,
+                ResponseStream = stream
+            });
 
             return this.RegisterMessage(success);
         }
 
         public async Task<string> UnregisterAsync(Guid guid)
         {
-            var success = await Task.Run(() => this.Subscribers.TryRemove(guid, out var stream));
+            var success = await this.Subscribers.TryRemoveAsync(guid);
 
             return UnregisterMessage(success);
         }

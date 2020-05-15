@@ -39,7 +39,7 @@ namespace Postbus.Startup
             return await Task.Run(() => new ExitReply { Message = message });
         }
 
-        public override async Task OpenConnection(IAsyncStreamReader<ChatRoomRequestStream> requestStream, IServerStreamWriter<ChatRoomResponseStream> responseStream, ServerCallContext context)
+        public override async Task OpenConnection(IAsyncStreamReader<RequestStream> requestStream, IServerStreamWriter<ResponseStream> responseStream, ServerCallContext context)
         {
             var metadata = context.RequestHeaders.ToDictionary(k => k.Key, v => v.Value);
 
@@ -47,12 +47,12 @@ namespace Postbus.Startup
 
             var success = await this.repository.RegisterAsync(guid, metadata["username"], responseStream);
 
-            await responseStream.WriteAsync(new ChatRoomResponseStream { Message = success });
+            await responseStream.WriteAsync(new ResponseStream { Message = success });
 
             await this.ProccessStream(requestStream, guid);
         }
 
-        private async Task ProccessStream(IAsyncStreamReader<ChatRoomRequestStream> requestStream, Guid guid)
+        private async Task ProccessStream(IAsyncStreamReader<RequestStream> requestStream, Guid guid)
         {
             await foreach (var req in requestStream.ReadAllAsync())
             {

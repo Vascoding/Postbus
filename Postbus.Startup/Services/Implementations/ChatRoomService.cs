@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Postbus.Internals.Extentions;
 using Postbus.Startup.Services.Interfaces;
 
 namespace Postbus.Startup.Services.Implementations
@@ -105,12 +106,12 @@ namespace Postbus.Startup.Services.Implementations
             {
                 try
                 {
-                    await this.repository.Subscribers[guid].ResponseStream.WriteAsync(new ChatRoomResponseStream { Message = message });
+                    await this.repository.Subscribers[guid].ResponseStream.WriteAsync(new ResponseStream { Message = message });
                 }
                 catch (Exception)
                 {
                     subscribersToRemove.Add(guid);
-                    this.repository.Subscribers.TryRemove(guid, out var subscriber);
+                    await this.repository.Subscribers.TryRemoveAsync(guid);
                     Console.WriteLine($"the connection for user {guid} was lost");
                 }
             }

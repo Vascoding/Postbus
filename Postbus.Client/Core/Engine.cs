@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
-using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Newtonsoft.Json;
@@ -13,6 +10,7 @@ namespace Postbus.Client.Core
     class Engine
     {
         private readonly PostbusClient client;
+
         public Engine(PostbusClient client)
         {
             this.client = client;
@@ -48,10 +46,10 @@ namespace Postbus.Client.Core
                 var users = JsonConvert.DeserializeObject<string[]>(usersResponse.Message);
                 Console.Clear();
                 Console.WriteLine(string.Join(Environment.NewLine, users));
-                await connection.RequestStream.WriteAsync(new ChatRoomRequestStream { Chatroom = chatroom, Message = "Hello everyone :)", Toall = true });
+                await connection.RequestStream.WriteAsync(new RequestStream { Chatroom = chatroom, Message = "Hello everyone :)", Toall = true });
                 while ((input = Console.ReadLine()) != "exit")
                 {
-                    await connection.RequestStream.WriteAsync(new ChatRoomRequestStream { Chatroom = chatroom, Message = input, Toall = true });
+                    await connection.RequestStream.WriteAsync(new RequestStream { Chatroom = chatroom, Message = input, Toall = true });
                 }
 
                 Console.Clear();
@@ -64,7 +62,7 @@ namespace Postbus.Client.Core
             await connection.RequestStream.CompleteAsync();
         }
 
-        private void ReadResponses(AsyncDuplexStreamingCall<ChatRoomRequestStream, ChatRoomResponseStream> connection)
+        private void ReadResponses(AsyncDuplexStreamingCall<RequestStream, ResponseStream> connection)
         {
             Task.Run(async () =>
             {
