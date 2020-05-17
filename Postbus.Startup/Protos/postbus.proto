@@ -6,6 +6,7 @@ package postbus;
 
 service Postbus {
   rpc RevealChatRooms (ChatRoomsRequest) returns (ChatRoomsReply);
+  rpc Register (RegisterRequest) returns (RegisterReply);
   rpc RevealUsers (UsersRequest) returns (UsersReply);
   rpc ExitChatRoom (ExitRequest) returns (ExitReply);
   rpc OpenConnection (stream RequestStream) returns (stream ResponseStream);
@@ -15,6 +16,14 @@ message ChatRoomsRequest { }
 
 message ChatRoomsReply {
   string message = 1;
+}
+
+message RegisterRequest {
+  string username = 1;
+}
+
+message RegisterReply {
+  bool success = 1;
 }
 
 message UsersRequest {
@@ -27,7 +36,7 @@ message UsersReply {
 
 message ExitRequest {
   string chatroom = 1;
-  string guid = 2;
+  string username = 2;
 }
 
 message ExitReply {
@@ -36,8 +45,9 @@ message ExitReply {
 
 message RequestStream {
   string chatroom = 1;
-  bool toall = 2;
-  string message = 3;
+  string username = 2;
+  bool toall = 3;
+  string message = 4;
 }
 
 message ResponseStream {

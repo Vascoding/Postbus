@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Newtonsoft.Json;
@@ -19,17 +20,27 @@ namespace Postbus.Client.Core
         public async Task Run()
         {
             Console.Write("Type your username: ");
-            var guid = Guid.NewGuid().ToString();
-            var username = Console.ReadLine();
+            string username;
+            while (true)
+            {
+                username = Console.ReadLine();
+                var resp = await this.client.RegisterAsync(new RegisterRequest { Username = username });
+                if (resp.Success)
+                {
+                    Console.WriteLine("Successfully registered!!!");
+                    break;
+                }
+
+                Console.WriteLine("Username is taken, please chose another one!!!");
+                Console.Write("Type your username: ");
+            }
             using var connection = client.OpenConnection(new Metadata 
             { 
-                { "guid",  guid },
                 { "username", username }
-
             });
 
             this.ReadResponses(connection);
-            var input = string.Empty;
+            string input;
             while (true)
             {
                 var chatRoomsResponse = await this.client.RevealChatRoomsAsync(new ChatRoomsRequest());
@@ -49,12 +60,19 @@ namespace Postbus.Client.Core
                 await connection.RequestStream.WriteAsync(new RequestStream { Chatroom = chatroom, Message = "Hello everyone :)", Toall = true });
                 while ((input = Console.ReadLine()) != "exit")
                 {
-                    await connection.RequestStream.WriteAsync(new RequestStream { Chatroom = chatroom, Message = input, Toall = true });
+                    if (input.StartsWith("/msg"))
+                    {
+                        //await connection.RequestStream.WriteAsync(new RequestStream { Chatroom = chatroom, Message = input, Toall = false, Username = user });
+                    }
+                    else
+                    {
+                        await connection.RequestStream.WriteAsync(new RequestStream { Chatroom = chatroom, Message = input, Toall = true });
+                    }
                 }
 
                 Console.Clear();
 
-                var response = await this.client.ExitChatRoomAsync(new ExitRequest { Chatroom = chatroom, Guid = guid });
+                var response = await this.client.ExitChatRoomAsync(new ExitRequest { Chatroom = chatroom, Username = username });
 
                 Console.WriteLine(response.Message);
             }

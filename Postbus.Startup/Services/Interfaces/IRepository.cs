@@ -1,17 +1,19 @@
 ﻿using Grpc.Core;
-using Postbus.Startup.Models;
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Postbus.Startup.Services.Interfaces
 {
-    internal interface IRepository
+    internal interface IRepository<T>
     {
-        IDictionary<Guid, Subscriber<ResponseStream>> Subscribers { get; }
+        Task<bool> Register(string username);
 
-        Task<string> RegisterAsync(Guid guid, string username, IServerStreamWriter<ResponseStream> stream);
+        Task<bool> SetStream(string username, IServerStreamWriter<T> stream);
 
-        Task<string> UnregisterAsync(Guid id);
+        Task<bool> UnregisterAsync(string username);
+
+        IServerStreamWriter<T> GetByUsername(string username);
+
+        IDictionary<string, IServerStreamWriter<T>> GetAll();
     }
 }

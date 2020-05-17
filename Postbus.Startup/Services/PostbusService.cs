@@ -13,13 +13,23 @@ namespace Postbus.Startup
     {
         private readonly ILogger<PostbusService> logger;
         private readonly IChatRoomService chatRoomService;
-        private readonly IRepository repository;
+        private readonly IMessageService messageService;
+        private readonly IRepository<ResponseStream> repository;
 
-        public PostbusService(ILogger<PostbusService> logger, IChatRoomService chatRoomService, IRepository repository)
+        public PostbusService(ILogger<PostbusService> logger, IChatRoomService chatRoomService, IMessageService messageService, IRepository<ResponseStream> repository)
         {
             this.logger = logger;
             this.chatRoomService = chatRoomService;
+            this.messageService = messageService;
             this.repository = repository;
+        }
+
+        public override async Task<RegisterReply> Register(RegisterRequest request, ServerCallContext context)
+        {
+            var success = await this.repository.Register(request.Username);
+
+            return await Task.Run(() =>
+                new RegisterReply { Success = success });
         }
 
         public override Task<ChatRoomsReply> RevealChatRooms(ChatRoomsRequest request, ServerCallContext context) =>
@@ -30,40 +40,40 @@ namespace Postbus.Startup
             Task.Run(() =>
                 new UsersReply { Message = JsonConvert.SerializeObject(this.chatRoomService.GetUsersPerChatRoom(request.Chatroom)) });
 
-        public override async Task<ExitReply> ExitChatRoom(ExitRequest request, ServerCallContext context)
-        {
-            Guid.TryParse(request.Guid, out var guid);
-
-            var message = await this.chatRoomService.UnRegisterAsync(request.Chatroom, guid);
-
-            return await Task.Run(() => new ExitReply { Message = message });
-        }
+        public override Task<ExitReply> ExitChatRoom(ExitRequest request, ServerCallContext context) =>
+            Task.Run(() =>
+                new ExitReply { Message = this.chatRoomService.UnRegister(request.Chatroom, request.Username) });
 
         public override async Task OpenConnection(IAsyncStreamReader<RequestStream> requestStream, IServerStreamWriter<ResponseStream> responseStream, ServerCallContext context)
         {
-            var metadata = context.RequestHeaders.ToDictionary(k => k.Key, v => v.Value);
+            var username = context.RequestHeaders.ToDictionary(k => k.Key, v => v.Value)["username"];
 
-            Guid.TryParse(metadata["guid"], out var guid);
+            var success = await this.repository.SetStream(username, responseStream);
 
-            var success = await this.repository.RegisterAsync(guid, metadata["username"], responseStream);
+            if (!success)
+            {
+                return;
+            }
 
-            await responseStream.WriteAsync(new ResponseStream { Message = success });
-
-            await this.ProccessStream(requestStream, guid);
+            await this.ProccessStream(requestStream, username);
         }
 
-        private async Task ProccessStream(IAsyncStreamReader<RequestStream> requestStream, Guid guid)
+        private async Task ProccessStream(IAsyncStreamReader<RequestStream> requestStream, string sender)
         {
             await foreach (var req in requestStream.ReadAllAsync())
             {
                 if (req.Toall)
                 {
-                    if (!this.chatRoomService.IsRegistered(req.Chatroom, guid))
+                    if (!this.chatRoomService.IsRegistered(req.Chatroom, sender))
                     {
-                        await this.chatRoomService.RegisterAsync(req.Chatroom, guid);
+                        await this.chatRoomService.RegisterAsync(req.Chatroom, sender);
                     }
 
-                    await this.chatRoomService.BroadcastMessageAsync(req.Chatroom, guid, req.Message);
+                    await this.messageService.BroadcastToAllAsync(req.Chatroom, req.Message, sender);
+                }
+                else
+                {
+                    await this.messageService.BroadcastToOneDualDirectionAsync(req.Username, req.Message, sender);
                 }
             }
         }
