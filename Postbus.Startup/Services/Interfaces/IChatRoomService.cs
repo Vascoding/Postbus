@@ -7,14 +7,16 @@ namespace Postbus.Startup.Services.Interfaces
 {
     internal interface IChatRoomService
     {
-        Task RegisterAsync(string chatRoom, string username);
+        Task Register(string chatRoom, string username);
 
-        string UnRegister(string chatRoom, string username);
+        Task<string> UnRegister(string chatRoom, string username);
 
-        string[] GetAvailableChatRooms();
+        Task<string[]> GetAvailableChatRooms();
 
-        IList<string> GetUsersPerChatRoom(string chatRoom);
+        Task<IList<string>> GetUsersPerChatRoom(string chatRoom);
 
-        bool IsRegistered(string chatRoom, string username);
+        Task RemoveSubscribersFromChatRoom(string chatRoom, List<string> username);
+
+        Task<bool> IsRegistered(string chatRoom, string username);
     }
 }

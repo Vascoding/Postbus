@@ -1,8 +1,8 @@
-﻿using System;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Postbus.Internals.Extentions;
 using Postbus.Startup.Services.Interfaces;
 
 namespace Postbus.Startup.Services.Implementations
@@ -16,68 +16,69 @@ namespace Postbus.Startup.Services.Implementations
             this.subscribersByChatRoom = this.InitChatRooms();
         }
 
-        public bool IsRegistered(string chatRoom, string username)
+        public async Task<bool> IsRegistered(string chatRoom, string username)
         {
-            if (!this.HasChatRoom(chatRoom))
+            var subscribers = await this.subscribersByChatRoom.TryGetValueAsync(chatRoom);
+
+            if (subscribers == null)
             {
                 return false;
             }
 
-            return this.subscribersByChatRoom[chatRoom].Any(u => u == username);
+            return subscribers.Any(u => u == username);
         }
 
-        public async Task RegisterAsync(string chatRoom, string username)
+        public async Task Register(string chatRoom, string username)
         {
-            await Task
-                .Run(() => this.subscribersByChatRoom
-                .AddOrUpdate(chatRoom, new List<string> { username }, (key, value) => {
-                    value.Add(username);
-                    return value;
-                }));
-        }
-
-        public string UnRegister(string chatRoom, string username)
-        {
-            if (!this.HasChatRoom(chatRoom))
+            await this.subscribersByChatRoom.AddOrUpdateAsync(chatRoom, new List<string> { username }, (key, value) =>
             {
-                return "Chat room not found!!!";
-            }
+                value.Add(username);
+                return value;
+            });
+        }
 
-            var subscriber = this.subscribersByChatRoom[chatRoom].FirstOrDefault(u => u == username);
+        public async Task<string> UnRegister(string chatRoom, string username)
+        {
+            var subscribers = await this.subscribersByChatRoom.TryGetValueAsync(chatRoom);
+
+            var subscriber = subscribers.FirstOrDefault(u => u == username);
 
             if (subscriber == null)
             {
                 return "User not found!!!";
             }
 
-            this.subscribersByChatRoom[chatRoom].Remove(subscriber);
+            subscribers.Remove(subscriber);
 
             return $"You left chat room {chatRoom}!!!";
         }
 
-        public string[] GetAvailableChatRooms() =>
-            this.subscribersByChatRoom.Keys.ToArray();
+        public async Task<string[]> GetAvailableChatRooms() =>
+            await Task.FromResult(this.subscribersByChatRoom.Keys.ToArray());
 
-        public IList<string> GetUsersPerChatRoom(string chatRoom)
+        public async Task<IList<string>> GetUsersPerChatRoom(string chatRoom)
         {
-            if (!this.HasChatRoom(chatRoom))
+            return await this.subscribersByChatRoom.TryGetValueAsync(chatRoom);
+        }
+
+        private ConcurrentDictionary<string, IList<string>> InitChatRooms() =>
+            new ConcurrentDictionary<string, IList<string>>
             {
-                return new List<string>();
+                { "Team", new List<string>() },
+                { "General", new List<string>() },
+                { "Spam", new List<string>() },
+            };
+
+        public async Task RemoveSubscribersFromChatRoom(string chatRoom, List<string> usernames)
+        {
+            var subscribers = await this.subscribersByChatRoom.TryGetValueAsync(chatRoom);
+
+            if (subscribers == null)
+            {
+                return;
             }
 
-            return this.subscribersByChatRoom[chatRoom];
+            usernames.ForEach(a => subscribers.Remove(a));
         }
-
-        private ConcurrentDictionary<string, IList<string>> InitChatRooms()
-        {
-            var availableChatRooms = new ConcurrentDictionary<string, IList<string>>();
-            availableChatRooms.TryAdd("Team", new List<string>());
-            availableChatRooms.TryAdd("General", new List<string>());
-            availableChatRooms.TryAdd("Spam", new List<string>());
-            return availableChatRooms;
-        }
-
-        private bool HasChatRoom(string chatRoom) =>
-            this.subscribersByChatRoom.ContainsKey(chatRoom);
     }
 }

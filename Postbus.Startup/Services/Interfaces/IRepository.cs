@@ -1,4 +1,5 @@
 ﻿using Grpc.Core;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -10,10 +11,8 @@ namespace Postbus.Startup.Services.Interfaces
 
         Task<bool> SetStream(string username, IServerStreamWriter<T> stream);
 
-        Task<bool> UnregisterAsync(string username);
+        Task<bool> Unregister(string username);
 
-        IServerStreamWriter<T> GetByUsername(string username);
-
-        IDictionary<string, IServerStreamWriter<T>> GetAll();
+        Task<IServerStreamWriter<T>> GetByUsername(string username);
     }
 }

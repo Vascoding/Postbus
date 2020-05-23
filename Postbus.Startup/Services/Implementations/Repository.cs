@@ -1,18 +1,20 @@
 ﻿using Grpc.Core;
 using Postbus.Internals.Extentions;
 using Postbus.Startup.Services.Interfaces;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Postbus.Startup.Services.Implementations
 {
     internal class Repository : IRepository<ResponseStream>
     {
-        private IDictionary<string, IServerStreamWriter<ResponseStream>> subscribers;
+        private ConcurrentDictionary<string, IServerStreamWriter<ResponseStream>> subscribers;
 
         public Repository()
         {
-            this.subscribers = new Dictionary<string, IServerStreamWriter<ResponseStream>>();
+            this.subscribers = new ConcurrentDictionary<string, IServerStreamWriter<ResponseStream>>();
         }
 
         public async Task<bool> Register(string username) =>
@@ -21,16 +23,10 @@ namespace Postbus.Startup.Services.Implementations
         public async Task<bool> SetStream(string username, IServerStreamWriter<ResponseStream> stream) =>
             await this.subscribers.TryUpdateAsync(username, stream);
 
-        public async Task<bool> UnregisterAsync(string username) =>
+        public async Task<bool> Unregister(string username) =>
             await this.subscribers.TryRemoveAsync(username);
 
-        public IServerStreamWriter<ResponseStream> GetByUsername(string username)
-        {
-            this.subscribers.TryGetValue(username, out var subsctriber);
-
-            return subsctriber;
-        }
-
-        public IDictionary<string, IServerStreamWriter<ResponseStream>> GetAll() => this.subscribers;
+        public async Task<IServerStreamWriter<ResponseStream>> GetByUsername(string username) =>
+            await this.subscribers.TryGetValueAsync(username);
     }
 }

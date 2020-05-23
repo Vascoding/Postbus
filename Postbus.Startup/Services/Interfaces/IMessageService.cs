@@ -4,10 +4,10 @@ namespace Postbus.Startup.Services.Interfaces
 {
     internal interface IMessageService
     {
-        Task BroadcastToAllAsync(string chatRoom, string message, string from);
+        Task BroadcastToAll(string chatRoom, string message, string from);
 
-        Task BroadcastToOneSingleDirectionAsync(string to, string message, string from);
+        Task BroadcastSingleDirection(string to, string message, string from);
 
-        Task BroadcastToOneDualDirectionAsync(string to, string message, string from);
+        Task BroadcastDualDirection(string to, string message, string from);
     }
 }

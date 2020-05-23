@@ -1,4 +1,4 @@
-﻿using Postbus.Internals.Extentions;
+﻿using Microsoft.Extensions.Logging;
 using Postbus.Startup.Services.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -8,18 +8,20 @@ namespace Postbus.Startup.Services.Implementations
 {
     internal class MessageService : IMessageService
     {
+        private readonly ILogger<MessageService> logger;
         private readonly IRepository<ResponseStream> repository;
         private readonly IChatRoomService chatRoomService;
-        public MessageService(IRepository<ResponseStream> repository, IChatRoomService chatRoomService)
+        public MessageService(ILogger<MessageService> logger, IRepository<ResponseStream> repository, IChatRoomService chatRoomService)
         {
+            this.logger = logger;
             this.repository = repository;
             this.chatRoomService = chatRoomService;
         }
 
-        public async Task BroadcastToOneSingleDirectionAsync(string to, string message, string from) =>
+        public async Task BroadcastSingleDirection(string to, string message, string from) =>
             await this.WriteToOne(to, $"{from}: {message}");
 
-        public async Task BroadcastToOneDualDirectionAsync(string to, string message, string from)
+        public async Task BroadcastDualDirection(string to, string message, string from)
         {
             var success = await this.WriteToOne(to, $"{from}: {message}");
 
@@ -33,7 +35,7 @@ namespace Postbus.Startup.Services.Implementations
             }
         }
 
-        public async Task BroadcastToAllAsync(string chatRoom, string message, string from)
+        public async Task BroadcastToAll(string chatRoom, string message, string from)
         {
             await this.WriteToAll(chatRoom, $"{from}: {message}");
         }
@@ -42,7 +44,7 @@ namespace Postbus.Startup.Services.Implementations
         {
             var subscribersToRemove = new List<string>();
 
-            foreach (var username in this.chatRoomService.GetUsersPerChatRoom(chatRoom))
+            foreach (var username in await this.chatRoomService.GetUsersPerChatRoom(chatRoom))
             {
                 var success = await this.WriteToOne(username, message);
 
@@ -52,20 +54,21 @@ namespace Postbus.Startup.Services.Implementations
                 }
             }
 
-            subscribersToRemove.ForEach(s => this.chatRoomService.GetUsersPerChatRoom(chatRoom).Remove(s));
+            await this.chatRoomService.RemoveSubscribersFromChatRoom(chatRoom, subscribersToRemove);
         }
 
         private async Task<bool> WriteToOne(string username, string message)
         {
             try
             {
-                await this.repository.GetByUsername(username).WriteAsync(new ResponseStream { Message = message });
+                // TODO: refactor this await await
+                await (await this.repository.GetByUsername(username)).WriteAsync(new ResponseStream { Message = message });
                 return true;
             }
-            catch (Exception)
+            catch
             {
-                Console.WriteLine($"the connection for user {username} was lost");
-                this.repository.UnregisterAsync(username);
+                this.logger.LogInformation($"the connection for user {username} was lost");
+                await this.repository.Unregister(username);
                 return false;
             }
         }
