@@ -2,8 +2,6 @@
 using Postbus.Internals.Extentions;
 using Postbus.Startup.Services.Interfaces;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace Postbus.Startup.Services.Implementations
@@ -26,7 +24,11 @@ namespace Postbus.Startup.Services.Implementations
         public async Task<bool> Unregister(string username) =>
             await this.subscribers.TryRemoveAsync(username);
 
-        public async Task<IServerStreamWriter<ResponseStream>> GetByUsername(string username) =>
-            await this.subscribers.TryGetValueAsync(username);
+        public IServerStreamWriter<ResponseStream> GetByUsername(string username)
+        {
+            this.subscribers.TryGetValue(username, out var value);
+
+            return value;
+        }
     }
 }

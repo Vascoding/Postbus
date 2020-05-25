@@ -1,6 +1,4 @@
 ﻿using Grpc.Core;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Postbus.Startup.Services.Interfaces
@@ -13,6 +11,6 @@ namespace Postbus.Startup.Services.Interfaces
 
         Task<bool> Unregister(string username);
 
-        Task<IServerStreamWriter<T>> GetByUsername(string username);
+        IServerStreamWriter<T> GetByUsername(string username);
     }
 }

@@ -11,7 +11,7 @@ namespace Postbus.Startup.Services.Implementations
     {
         private readonly ConcurrentDictionary<string, IList<string>> subscribersByChatRoom;
 
-        public ChatRoomService(IRepository<ResponseStream> repository)
+        public ChatRoomService()
         {
             this.subscribersByChatRoom = this.InitChatRooms();
         }

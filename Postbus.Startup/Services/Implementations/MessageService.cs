@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using Postbus.Startup.Services.Interfaces;
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -35,10 +34,8 @@ namespace Postbus.Startup.Services.Implementations
             }
         }
 
-        public async Task BroadcastToAll(string chatRoom, string message, string from)
-        {
+        public async Task BroadcastToAll(string chatRoom, string message, string from) =>
             await this.WriteToAll(chatRoom, $"{from}: {message}");
-        }
 
         private async Task WriteToAll(string chatRoom, string message)
         {
@@ -61,8 +58,7 @@ namespace Postbus.Startup.Services.Implementations
         {
             try
             {
-                // TODO: refactor this await await
-                await (await this.repository.GetByUsername(username)).WriteAsync(new ResponseStream { Message = message });
+                await this.repository.GetByUsername(username).WriteAsync(new ResponseStream { Message = message });
                 return true;
             }
             catch
