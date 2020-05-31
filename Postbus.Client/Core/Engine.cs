@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Newtonsoft.Json;
+using Postbus.Client.IO;
 using Postbus.Startup;
 using static Postbus.Startup.Postbus;
 
@@ -11,10 +12,14 @@ namespace Postbus.Client.Core
     class Engine
     {
         private readonly PostbusClient client;
+        private readonly InputReader reader;
+        private readonly OutputWriter writer;
 
-        public Engine(PostbusClient client)
+        public Engine(PostbusClient client, InputReader reader, OutputWriter writer)
         {
             this.client = client;
+            this.reader = reader;
+            this.writer = writer;
         }
 
         public async Task Run()
@@ -36,26 +41,26 @@ namespace Postbus.Client.Core
             {
                 await foreach (var res in connection.ResponseStream.ReadAllAsync())
                 {
-                    Console.WriteLine(res.Message);
+                    this.writer.WriteLine(res.Message);
                 }
             });
         }
 
         private async Task<string> Register()
         {
-            Console.Clear();
-            Console.Write("Type your username: ");
-            string username = Console.ReadLine();
-            var resp = await this.client.RegisterAsync(new RegisterRequest { Username = username });
+            this.writer.Clear();
+            this.writer.Write("Type your username: ");
+            string username = this.reader.ReadLine();
+            var response = await this.client.RegisterAsync(new RegisterRequest { Username = username });
 
-            if (resp.Success)
+            if (response.Success)
             {
-                Console.WriteLine("Successfully registered!!!");
+                this.writer.WriteLine("Successfully registered!!!");
                 return username;
             }
 
-            Console.WriteLine("Username is taken, please chose another one!!!");
-            Console.Write("Type your username: ");
+            this.writer.WriteLine("Username is taken, please chose another one!!!");
+            this.writer.Write("Type your username: ");
 
             return await this.Register();
         }
@@ -65,6 +70,7 @@ namespace Postbus.Client.Core
             while (true)
             {
                 var chatroom = await this.EnterChatRoom();
+
                 if (chatroom == "exit")
                 {
                     break;
@@ -74,11 +80,11 @@ namespace Postbus.Client.Core
 
                 await this.StartTyping(chatroom, connection);
 
-                Console.Clear();
+                this.writer.Clear();
 
                 var response = await this.client.ExitChatRoomAsync(new ExitRequest { Chatroom = chatroom, Username = username });
 
-                Console.WriteLine(response.Message);
+                this.writer.WriteLine(response.Message);
             }
         }
 
@@ -86,19 +92,19 @@ namespace Postbus.Client.Core
         {
             var chatRoomsResponse = await this.client.RevealChatRoomsAsync(new ChatRoomsRequest());
             var chatRooms = JsonConvert.DeserializeObject<string[]>(chatRoomsResponse.Message);
-            Console.WriteLine(string.Join(Environment.NewLine, chatRooms));
+            this.writer.WriteLine(string.Join(Environment.NewLine, chatRooms));
             
             while (true)
             {
-                Console.Write("Enter Chat Room: ");
-                var chatRoom = Console.ReadLine();
+                this.writer.Write("Enter Chat Room: ");
+                var chatRoom = this.reader.ReadLine();
 
                 if (chatRooms.Contains(chatRoom) || chatRoom == "exit")
                 {
                     return chatRoom;
                 }
 
-                Console.WriteLine("Invalid Chat Room");
+                this.writer.WriteLine("Invalid Chat Room");
             }
         }
 
@@ -106,8 +112,8 @@ namespace Postbus.Client.Core
         {
             var usersResponse = await this.client.RevealUsersAsync(new UsersRequest() { Chatroom = chatroom });
             var users = JsonConvert.DeserializeObject<string[]>(usersResponse.Message);
-            Console.Clear();
-            Console.WriteLine(string.Join(Environment.NewLine, users));
+            this.writer.Clear();
+            this.writer.WriteLine(string.Join(Environment.NewLine, users));
             await connection.RequestStream.WriteAsync(new RequestStream { Chatroom = chatroom, Message = "Hello everyone :)", Toall = true });
         }
 
@@ -115,7 +121,7 @@ namespace Postbus.Client.Core
         {
             string input;
 
-            while ((input = Console.ReadLine()) != "exit")
+            while ((input = this.reader.ReadLine()) != "exit")
             {
                 await this.ProcessInput(input, chatroom, connection);
             }
@@ -137,7 +143,7 @@ namespace Postbus.Client.Core
         {
             var username = input.Replace("/msg", "").Trim();
 
-            while ((input = Console.ReadLine()) != "exit")
+            while ((input = this.reader.ReadLine()) != "exit")
             {
                 await connection.RequestStream.WriteAsync(new RequestStream { Message = input, Toall = false, Username = username });
             }

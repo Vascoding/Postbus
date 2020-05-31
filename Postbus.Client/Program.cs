@@ -1,6 +1,8 @@
 ﻿using System.Threading.Tasks;
 using Grpc.Net.Client;
 using Postbus.Client.Core;
+using Postbus.Client.Enums;
+using Postbus.Client.IO;
 
 namespace Postbus.Client
 {
@@ -8,10 +10,13 @@ namespace Postbus.Client
     {
         static async Task Main()
         {
-            using var channel = GrpcChannel.ForAddress("https://localhost:5001");
-            var client = new Startup.Postbus.PostbusClient(channel);
+            using var channel = GrpcChannel.ForAddress(Configuration.GetHostName(AppMode.Development));
 
-            await new Engine(client).Run();
+            await new Engine(
+                new Startup.Postbus.PostbusClient(channel),
+                new InputReader(),
+                new OutputWriter())
+                .Run();
         }
     }
 }
